@@ -2,12 +2,17 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export default function RepoScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { name, description, stars } = route.params;
-    const [language, setLanguage] = React.useState<string | null>(null);
+    const { name, description, stars, createdAt } = route.params;
+    const [language, setLanguage] = React.useState<string>('Unknown');
+
+    const formatNumber = (num: number) => new Intl.NumberFormat('sv-SE').format(num);
+
+    const languageColors = require('./languageColors.json');
 
     const getRepoInfo = async () => {
         try {
@@ -32,8 +37,25 @@ export default function RepoScreen() {
         <SafeAreaView style={styles.container}>
             <Text style={styles.title}>{name}</Text>
             <Text style={styles.description}>{description}</Text>
-            <Text style={styles.stars}>{stars} ★ stars</Text>
-            <Text style={styles.description}>Language: {language}</Text>
+            <View style={styles.starsRow}>
+                <View style={styles.iconCell}>
+                    <Icon name="star-outline" size={16} color="#B8860B" />
+                </View>
+                <Text style={styles.stars}> {formatNumber(stars)} stars</Text>
+            </View>
+            <View style={styles.languageView}>
+                <Text style={styles.languageText}>Language:</Text>
+                <View style={[styles.iconCell, styles.languageIconCell]}>
+                    <View
+                        style={[
+                            styles.languageDot,
+                            { backgroundColor: languageColors[language] || '#fff' },
+                        ]}
+                    />
+                </View>
+                <Text style={styles.languageText}> {language}</Text>
+            </View>
+            <Text style={styles.createdAt}>Created: {createdAt.split('T')[0]}</Text>
         </SafeAreaView>
     );
 }
@@ -41,32 +63,58 @@ export default function RepoScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: '#fff',
         padding: 12,
     },
     title: {
-        color: '#fff',
+        color: '#000',
         fontSize: 20,
         fontWeight: '700',
         marginBottom: 8,
     },
     description: {
-        color: '#ddd',
+        color: '#000',
         fontSize: 14,
         marginBottom: 8,
     },
     stars: {
-        color: '#fff',
+        color: '#000',
         fontSize: 14,
+    },
+    starsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginBottom: 16,
     },
-    backButton: {
-        borderWidth: 1,
-        borderColor: '#fff',
-        padding: 8,
-        alignSelf: 'flex-start',
+    languageView: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
     },
-    backButtonText: {
-        color: '#fff',
+    languageText: {
+        color: '#000',
+        fontSize: 14,
+    },
+    createdAt: {
+        color: '#000',
+        fontSize: 14,
+        marginBottom: 8,
+    },
+    iconCell: {
+        width: 16,
+        height: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    languageIconCell: {
+        marginLeft: 5,
+        marginRight: 6,
+    },
+    languageDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: '#000',
     },
 });
