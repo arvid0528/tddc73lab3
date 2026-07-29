@@ -7,7 +7,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 export default function RepoScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { name, description, stars, createdAt } = route.params;
+    const { name, description, stars, createdAt }
+     = route.params ?? {name: 'Unknown', description: 'No description', stars: 0, createdAt: 'Unknown'};
     const [language, setLanguage] = React.useState<string>('Unknown');
 
     const formatNumber = (num: number) => new Intl.NumberFormat('sv-SE').format(num);

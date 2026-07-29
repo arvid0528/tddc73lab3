@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { styles } from './HomeScreen.styles';
+import { styles } from './MyReposScreen.styles';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useGitHubAuth } from './AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 const languageColors = require('./languageColors.json');
 
@@ -15,10 +17,6 @@ type RepoItem = {
     language: string | null;
     stargazers_count: number;
     created_at: string;
-};
-
-type RepoSearchResponse = {
-    items: RepoItem[];
 };
 
 type PageItem = {
@@ -34,19 +32,17 @@ type MenuKind = 'language' | 'dateRange';
 const languageOptions = ['All', 'JavaScript', 'TypeScript', 'Python', 'Go', 'Java'];
 const dateRangeOptions = ['Past 7 days', 'Past 30 days', 'This year'];
 
-export default function MainScreen() {
+export default function MyReposScreen() {
     const navigation = useNavigation<any>();
     const [pages, setPages] = useState<PageItem[]>([]);
     const [languageFilter, setLanguageFilter] = useState<string>('All');
-    const [dateRange, setDateRange] = useState<string>('Past 7 days');
     const [menuVisible, setMenuVisible] = useState(false);
     const [activeMenu, setActiveMenu] = useState<MenuKind>('language');
     const [menuAnchor, setMenuAnchor] = useState({ x: 10, y: 10, height: 0 });
     const languageTriggerRef = useRef<View>(null);
-    const dateRangeTriggerRef = useRef<View>(null);
 
     const route = useRoute<any>();
-    const {user, token } = route.params ?? {user: null, token: null};
+    const { user, token } = useGitHubAuth();
 
     const openMenu = (kind: MenuKind, ref: React.RefObject<View | null>) => {
         setActiveMenu(kind);
@@ -68,36 +64,17 @@ export default function MainScreen() {
     const fetchPages = async () => {
         try {
                 setPages([]);
-
-                const currentDate = new Date();
-                if (dateRange === 'Past 7 days') {
-                    currentDate.setDate(currentDate.getDate() - 7);
-                }
-                if (dateRange === 'Past 30 days') {
-                    currentDate.setDate(currentDate.getDate() - 30);
-                }
-                if (dateRange === 'This year') {
-                    currentDate.setMonth(0);
-                    currentDate.setDate(1);
-                }
-
-                const currentYear = currentDate.getFullYear();
-                const currentMonth = currentDate.getMonth() + 1;
-                const currentDay = currentDate.getDate();
                 
-                const formattedDate = currentYear + '-' + (currentMonth < 10 ? '0' : '') + currentMonth + '-' + (currentDay < 10 ? '0' : '') + currentDay;
-                
-                const queryParts = [`created:>${formattedDate}`, 'archived:false'];
-                
-                if (languageFilter !== 'All') {
-                    queryParts.push(`language:${languageFilter}`);
+                if (!user) {
+                    return;
                 }
 
                 const response = await fetch(
-                    `https://api.github.com/search/repositories?q=${encodeURIComponent(queryParts.join(' '))}&sort=stars&order=desc&per_page=20`,
+                    'https://api.github.com/user/repos?visibility=all',
                     {
                         headers: {
-                            Accept: 'application/vnd.github+json',
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/vnd.github+json',
                         },
                     }
                 );
@@ -107,9 +84,18 @@ export default function MainScreen() {
                     throw new Error(`GitHub request failed (${response.status}): ${responseText.slice(0, 120)}`);
                 }
 
-                const data: RepoSearchResponse = JSON.parse(responseText);
+                const data: RepoItem[] = JSON.parse(responseText);
                 console.log('Fetched data:', data);
-                const mappedPages: PageItem[] = (data.items ?? []).map((repo) => ({
+
+                const filteredPages = data.filter((page) => {
+                    if (languageFilter === 'All') {
+                        return true;
+                    }
+
+                    return page.language === languageFilter;
+                });
+
+                const mappedPages: PageItem[] = filteredPages.map((repo) => ({
                     name: repo.full_name,
                     description: repo.description ?? 'No description available',
                     language: repo.language ?? 'Unknown',
@@ -117,22 +103,30 @@ export default function MainScreen() {
                     createdAt: repo.created_at,
                 }));
 
-                if (mappedPages.length > 0) {
-                    setPages(mappedPages);
-                }
+                setPages(mappedPages);
+                
             } catch (error) {
                 console.error('Failed to fetch pages:', error);
             }
     };
 
-    useEffect(() => {
-        fetchPages();
-    }, [languageFilter, dateRange]);
+    useFocusEffect(
+        React.useCallback(() => {
+            if (user && token) {
+                fetchPages();
+            }
+            else {
+                setPages([]);
+            }
+        }, [user, token, languageFilter])
+    );
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerText}>Explore</Text>
+                <Text style={styles.headerText}>
+                    {user ? `${user.login}'s Repositories` : 'Not Logged in'}
+                </Text>
             </View>
             <View style={styles.menuRow}>
 
@@ -146,19 +140,7 @@ export default function MainScreen() {
                         <Text style={styles.modeButtonText}>{languageFilter} ▼</Text>
                     </Pressable>
                 </View>
-
-                <View style={styles.menuView}>
-                    <Text style={styles.menuLabel}>Created:</Text>
-                    <Pressable
-                        ref={dateRangeTriggerRef}
-                        style={styles.menuTrigger}
-                        onPress={() => openMenu('dateRange', dateRangeTriggerRef)}
-                    >
-                        <Text style={styles.modeButtonText}>{dateRange} ▼</Text>
-                    </Pressable>
-                </View>
                 
-
                 <Pressable style={styles.refreshButton} 
                     onPress={() => fetchPages()}
                 >
@@ -192,8 +174,6 @@ export default function MainScreen() {
                                     if (activeMenu === 'language') {
                                         setLanguageFilter(option);
                                         
-                                    } else {
-                                        setDateRange(option);
                                     }
                                     setMenuVisible(false);
                                 }}
@@ -206,6 +186,7 @@ export default function MainScreen() {
             </Modal>
             <ScrollView style={styles.pagesList}>
                 {pages.map((page, index) => (
+
                     <Pressable
                         key={index}
                         style={styles.pageItem}
