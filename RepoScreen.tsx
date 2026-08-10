@@ -3,13 +3,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useGitHubAuth } from './AuthContext';
 
 export default function RepoScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { name, description, stars, createdAt }
-     = route.params ?? {name: 'Unknown', description: 'No description', stars: 0, createdAt: 'Unknown'};
-    const [language, setLanguage] = React.useState<string>('Unknown');
+    const { token } = useGitHubAuth();
+    const { name, description, stars, createdAt, language: initialLanguage }
+     = route.params ?? {name: 'Unknown', description: 'No description', stars: 0, createdAt: 'Unknown', language: 'Unknown'};
+    const [language, setLanguage] = React.useState<string>(initialLanguage ?? 'Unknown');
 
     const formatNumber = (num: number) => new Intl.NumberFormat('sv-SE').format(num);
 
@@ -17,12 +19,17 @@ export default function RepoScreen() {
 
     const getRepoInfo = async () => {
         try {
-            const response = await fetch(`https://api.github.com/repos/${name}`);
+            const response = await fetch(`https://api.github.com/repos/${name}`, {
+                headers: {
+                    Accept: 'application/vnd.github+json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+            });
             const data = await response.json();
 
             console.log('repo data:', data);
             if (!response.ok) {
-                throw new Error('Failed to fetch repo info');
+                throw new Error(`Failed to fetch repo info: ${data.message}`);
             }
             setLanguage(data.language);
         } catch (error) {
@@ -32,7 +39,7 @@ export default function RepoScreen() {
 
     React.useEffect(() => {
         getRepoInfo();
-    }, [name]);
+    }, [name, token]);
 
     return (
         <SafeAreaView style={styles.container}>
