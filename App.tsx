@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, Pressable, View, StyleSheet } from 'react-native';
 import HomeScreen from './HomeScreen';
 import RepoScreen from './RepoScreen';
@@ -14,14 +14,18 @@ import { GitHubAuthProvider } from './AuthContext';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function bottomTabs() {
+function BottomTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
           backgroundColor: '#000',
-          height: 70,
+          position: 'absolute',
+          height: 60,
+          bottom: insets.bottom,
         },
         tabBarActiveTintColor: 'rgb(0, 106, 255)',
         tabBarInactiveTintColor: '#fff',
@@ -74,7 +78,7 @@ export default function App() {
           <Stack.Navigator>
             <Stack.Screen
               name="Main"
-              component={bottomTabs}
+              component={BottomTabs}
               options={{ headerShown: false }}
             />
             <Stack.Screen
